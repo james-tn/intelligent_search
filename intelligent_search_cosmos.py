@@ -137,7 +137,8 @@ def run_search_query(query_json: dict):
     The query uses vector similarity on the 'bodyVector' field and full-text scoring on the 'body' field.  
     """  
     search_text = query_json.get("search_text", "")  
-    filter_str = query_json.get("filter", "").strip()  
+    filter_str = query_json.get("filter", "")
+    print(f"Filter string: {filter_str}")
   
     # Get embedding for the search text  
     search_embedding = get_embedding(search_text)  
@@ -151,7 +152,7 @@ def run_search_query(query_json: dict):
   
     # Build the query string  
     query_string = f"""  
-    SELECT TOP 20 c.id, c.from, c.subject, c.sent_time, c.body  
+    SELECT TOP 20 c.id, c["from"], c.subject, c.sent_time, c.body  
     FROM c  
     {where_clause}  
     ORDER BY RANK RRF(  
@@ -159,6 +160,7 @@ def run_search_query(query_json: dict):
         FullTextScore(c.body, '{safe_search_text}')  
     )  
     """  
+    query_string= query_string.replace('c.from', 'c["from"]')  #escape from keyword
     print("Executing Cosmos DB Query:")  
     print(query_string)  
   
