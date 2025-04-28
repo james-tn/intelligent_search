@@ -160,7 +160,7 @@ def run_search_query(query_json: dict):
         FullTextScore(c.body, '{safe_search_text}')  
     )  
     """  
-    query_string= query_string.replace('c.from', 'c["from"]')  #escape from keyword
+    query_string= query_string.replace('c.from', 'c["from"]')  #Add escape from keyword
     print("Executing Cosmos DB Query:")  
     print(query_string)  
   
