@@ -14,16 +14,51 @@ import math
 from azure.cosmos import CosmosClient
 from azure.identity import ClientSecretCredential
 
+
+
+
+
+
+
 # ─────────────────── Load ENV and Initialize ───────────────────
 load_dotenv()
+
+
+
+from datetime import datetime
+
+def get_current_time():
+    return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+system_prompt = (
+    f"Today is {get_current_time()}. You are an expert query translator for a Cosmos DB vector search engine. "
+    "Convert the conversation of natural language email search queries into a complete query JSON object. "
+    "The JSON object must contain exactly the following keys: 'search_text' and 'filter'.\n\n"
+    "Additional guidelines:\n"
+    "1. The 'search_text' key should include useful free-text search terms extracted from subject, body, and attachments.\n"
+    "2. The 'filter' key should include any structured filter expressions. When filtering on dates, use ISO 8601 format. "
+    "For example, if the user says 'before June 13 2025', output a filter like: c.sent_time < '2025-06-13T00:00:00Z'.\n"
+    "For sender emails or other string properties, use equality with proper quoting.\n"
+    "3. Output only the JSON object – do not include any additional text or commentary.\n\n"
+    "Document schema:\n"
+    " - id (string)\n"
+    " - from (string): Sender Email\n"
+    " - to_list (string): Recipient list\n"
+    " - cc_list (string): CC list\n"
+    " - subject (string)\n"
+    " - important (int)\n"
+    " - body (string)\n"
+    " - category (string)\n"
+    " - attachment_names (collection of string)\n"
+    " - received_time (DateTimeOffset) e.g., '2025-06-13T00:00:00Z'\n"
+    " - sent_time (DateTimeOffset) e.g., '2025-06-13T00:00:00Z'\n"
+)
+
 mcp = FastMCP(
     name="Email Search Tools",
-    instructions=(
-        "You are an intelligent agent that assists users in searching emails stored in Cosmos DB. "
-        "You must first convert the natural language into a JSON query with keys 'search_text' and 'filter', "
-        "then call the tool `run_cosmos_query` using that JSON to get the results."
-    ),
+    instructions=system_prompt,
 )
+
 
 # ─────────────────── Azure OpenAI & Cosmos Config ───────────────────
 COSMOS_URI = os.getenv("COSMOS_URI")

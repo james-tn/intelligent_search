@@ -1,4 +1,4 @@
-# agent.py (matches pattern from chat_agent.py)
+# agent.py
 
 import logging
 from base_agent import BaseAgent
@@ -7,10 +7,8 @@ from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.connectors.mcp import MCPSsePlugin
 
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 
 class SearchAgent(BaseAgent):
@@ -26,7 +24,7 @@ class SearchAgent(BaseAgent):
         cosmos_plugin = MCPSsePlugin(
             name="EmailMCP",
             description="Cosmos Email Search Plugin",
-            url="http://localhost:8000/sse",  # from BaseAgent config
+            url="http://localhost:8000/sse",
             headers={"Content-Type": "application/json"},
             timeout=30,
         )
@@ -42,7 +40,11 @@ class SearchAgent(BaseAgent):
             name="EmailSearchBot",
             instructions="You are a helpful assistant. You can search emails stored in Cosmos DB as per user queries"
             "you take user input which is natural language and create embedding to find best match from cosmos db."
-            "Make sure to use appropriate tools from the MCPTools plugin in the right order to provide user with right answers.",
+            "Make sure to use appropriate tools from the MCPTools plugin in the right order to provide user with right answers."
+            "Make sure to use the information provided to best possible identical match, for example in if asked to show emails from A to B, just with first names provided"
+            "Your output should focus first on identical name from sender to receiver, any other matches should be listed as 'less possible results'"
+            "if from and to in emails are not identical, focus on first name matches (like alice.johnson@company.com has first name as 'alice'), and then last name matches, and then any other matches"
+            "show only top 2 matches"
             plugins=[cosmos_plugin],
         )
 
