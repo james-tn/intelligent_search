@@ -107,7 +107,7 @@ def get_current_time() -> str:
     return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-#@mcp.tool(description="Convert conversation to a JSON search query")
+@mcp.tool(description="Convert conversation to a JSON search query")
 def generate_search_query(params: ConversationHistory) -> SearchQuery:
     system_prompt = f"""Today is {get_current_time()}. You are an expert query translator for a Cosmos DB vector search engine. 
 Convert the conversation of natural language email search queries into a complete query JSON object. 
@@ -163,7 +163,7 @@ Document schema:
     print("[ERROR] All attempts to generate search query failed.")
     return SearchQuery(search_text="", filter="")
     
-#@mcp.tool(description="Run vector + full-text query over Cosmos DB email container")
+@mcp.tool(description="Run vector + full-text query over Cosmos DB email container")
 def _run_cosmos_query_impl(params: ConversationHistory) -> List[EmailResult]:
     print(f"[DEBUG] User query received: {params.messages[-1].content if params.messages else '[No message]'}")
     search_query = generate_search_query(params)
@@ -251,29 +251,19 @@ def _run_cosmos_query_impl(params: ConversationHistory) -> List[EmailResult]:
 def run_cosmos_query(params: ConversationHistory) -> List[EmailResult]:
     return _run_cosmos_query_impl(params)
 
-# # ─────────────────── Test Block ───────────────────
-# if __name__ == "__main__":
-#     # Test block: Run a sample query directly
-#     user_query = "show me emails before June 13 2025"
-#     conversation = ConversationHistory(
-#         messages=[ConversationMessage(role="user", content=user_query)]
-#     )
-#     print(f"[TEST] Submitting user query: {user_query}")
-#     results = _run_cosmos_query_impl(conversation)
-#     print("\n=== Search Results ===")
-#     for email in results:
-#         print(f"Subject: {email.subject}")
-#         print(f"From: {email.sender}")
-#         print(f"Sent: {email.sent_time}")
-#         print(f"Preview: {email.body_preview}")
-#         print("-" * 40)
-
-
-
-
-
-
-# ─────────────────── Run as MCP Server ───────────────────
+# ─────────────────── Test Block ───────────────────
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(mcp.run_sse_async(host="0.0.0.0", port=8000))
+    # Test block: Run a sample query directly
+    user_query = "show me emails from alice.johnson@company.com sent before Jun 14 2025"
+    conversation = ConversationHistory(
+        messages=[ConversationMessage(role="user", content=user_query)]
+    )
+    print(f"[TEST] Submitting user query: {user_query}")
+    results = _run_cosmos_query_impl(conversation)
+    print("\n=== Search Results ===")
+    for email in results:
+        print(f"Subject: {email.subject}")
+        print(f"From: {email.sender}")
+        print(f"Sent: {email.sent_time}")
+        print(f"Preview: {email.body_preview}")
+        print("-" * 40)
