@@ -60,7 +60,8 @@ class SearchAgent:
             instructions=(
                 "You are a helpful assistant. You can search emails stored in Cosmos DB as per user queries. "
                 "You take user input which is natural language and pass it as it is to process using MCP tools. "
-                "Return topmost result only"
+                "Return most relevant resuls only"
+                "For others you can say 'less possible ones can be'"
             ),
             plugins=[cosmos_plugin],
         )
@@ -76,7 +77,10 @@ class SearchAgent:
 
     async def chat_async(self, prompt: str) -> str:
         await self._setup_agent()
-
+        params = {
+            "search_text": prompt,
+            "filter": ""
+        }
         response = await self._agent.get_response(messages=prompt, thread=self._thread)
         response_content = str(response.content)
 
@@ -91,6 +95,7 @@ class SearchAgent:
         self.append_to_chat_history(messages)
 
         return response_content
+
 
 
 
