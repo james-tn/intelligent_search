@@ -1,21 +1,40 @@
-# agent.py
-
+import os
 import logging
-from base_agent import BaseAgent
+from typing import Optional
+
+from dotenv import load_dotenv
 from semantic_kernel.agents import ChatCompletionAgent, ChatHistoryAgentThread
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.connectors.mcp import MCPSsePlugin
 
+# Load environment variables
+load_dotenv()
+
+AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
+AZURE_DEPLOYMENT = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
-class SearchAgent(BaseAgent):
-    def __init__(self, state_store, session_id) -> None:
-        super().__init__(state_store, session_id)
+class SearchAgent:
+    def __init__(self, state_store: Optional[dict] = None, session_id: Optional[str] = None) -> None:
         self._agent = None
+        self._thread: Optional[ChatHistoryAgentThread] = None
         self._initialized = False
+
+        self.session_id = session_id
+        self.state = state_store or {}
+
+    def _setstate(self, new_state: dict):
+        self.state.update(new_state)
+
+    def append_to_chat_history(self, messages: list[dict]):
+        if "chat_history" not in self.state:
+            self.state["chat_history"] = []
+        self.state["chat_history"].extend(messages)
 
     async def _setup_agent(self) -> None:
         if self._initialized:
@@ -32,27 +51,24 @@ class SearchAgent(BaseAgent):
 
         self._agent = ChatCompletionAgent(
             service=AzureChatCompletion(
-                api_key=self.azure_openai_key,
-                endpoint=self.azure_openai_endpoint,
-                api_version=self.api_version,
-                deployment_name=self.azure_deployment,
+                api_key=AZURE_OPENAI_KEY,
+                endpoint=AZURE_OPENAI_ENDPOINT,
+                api_version=AZURE_OPENAI_API_VERSION,
+                deployment_name=AZURE_DEPLOYMENT,
             ),
             name="EmailSearchBot",
-            instructions="You are a helpful assistant. You can search emails stored in Cosmos DB as per user queries"
-            "you take user input which is natural language and create embedding to find best match from cosmos db."
-            "Make sure to use appropriate tools from the MCPTools plugin in the right order to provide user with right answers."
-            "Make sure to use the information provided to best possible identical match, for example in if asked to show emails from A to B, just with first names provided"
-            "Your output should focus first on identical name from sender to receiver, any other matches should be listed as 'less possible results'"
-            "if from and to in emails are not identical, focus on first name matches (like alice.johnson@company.com has first name as 'alice'), and then last name matches, and then any other matches"
-            "show only top 2 matches"
+            instructions=(
+                "You are a helpful assistant. You can search emails stored in Cosmos DB as per user queries. "
+                "You take user input which is natural language and pass it as it is to process using MCP tools. "
+                "Return topmost result only"
+            ),
             plugins=[cosmos_plugin],
         )
 
-        self._thread: ChatHistoryAgentThread | None = None
-        if self.state and isinstance(self.state, dict) and "thread" in self.state:
+        if "thread" in self.state:
             try:
                 self._thread = self.state["thread"]
-                logger.info("Restored thread from SESSION_STORE")
+                logger.info("Restored thread from state store")
             except Exception as e:
                 logger.warning(f"Could not restore thread: {e}")
 
@@ -60,6 +76,7 @@ class SearchAgent(BaseAgent):
 
     async def chat_async(self, prompt: str) -> str:
         await self._setup_agent()
+
         response = await self._agent.get_response(messages=prompt, thread=self._thread)
         response_content = str(response.content)
 
@@ -74,3 +91,25 @@ class SearchAgent(BaseAgent):
         self.append_to_chat_history(messages)
 
         return response_content
+
+
+
+
+
+# ✅ TEST BLOCK TO VERIFY MCP INTEGRATION
+if __name__ == "__main__":
+    async def main():
+        print("⚙️  Starting SearchAgent Test (MCP & Cosmos Integration)...\n")
+        state = {}
+        agent = SearchAgent(state_store=state, session_id="test-session")
+
+        user_input = input("Enter your email search query: ").strip()
+        try:
+            response = await agent.chat_async(user_input)
+            print("\n🧠 Agent Response:")
+            print(response)
+        except Exception as e:
+            logger.exception("🚨 Error during agent test run:")
+            print(f"\n❌ Exception: {e}")
+    import asyncio
+    asyncio.run(main())
